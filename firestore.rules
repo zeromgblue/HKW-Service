@@ -1,0 +1,14 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All reads/writes go through server-side code using the Firebase Admin
+    // SDK (src/lib/firebase/admin.ts), which bypasses these rules entirely.
+    // Direct client access is denied so public users can never write
+    // protected fields (status, assignedTo, completion data) themselves,
+    // per spec section 8/12.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
