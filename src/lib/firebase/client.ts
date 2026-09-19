@@ -1,0 +1,30 @@
+import { type FirebaseApp, getApps, initializeApp } from "firebase/app";
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+export function isFirebaseConfigured(): boolean {
+  return Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+}
+
+// Lazily initialized so importing this module does not throw before
+// .env.local is filled in (Firebase project is created in Phase 2).
+let app: FirebaseApp | undefined;
+
+export function getFirebaseApp(): FirebaseApp {
+  if (!isFirebaseConfigured()) {
+    throw new Error(
+      "Firebase ยังไม่ได้ตั้งค่า กรุณาใส่ค่า NEXT_PUBLIC_FIREBASE_* ใน .env.local",
+    );
+  }
+  if (!app) {
+    app = getApps()[0] ?? initializeApp(firebaseConfig);
+  }
+  return app;
+}

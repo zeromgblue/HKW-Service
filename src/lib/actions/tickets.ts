@@ -1,0 +1,100 @@
+"use server";
+
+import { FieldValue } from "firebase-admin/firestore";
+import { defaultCategories } from "@/data/categories";
+import { getAdminFirestore, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
+import { generateTicketId } from "@/lib/tickets/generateTicketId";
+import { reportFormSchema } from "@/lib/validation/ticket";
+
+export type CreateTicketResult =
+  | { ok: true; ticketId: string }
+  | { ok: false; error: string };
+
+export async function createTicket(input: unknown): Promise<CreateTicketResult> {
+  // Never trust client-side validation alone (spec section 8 / 12).
+  const parsed = reportFormSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบแบบฟอร์มอีกครั้ง" };
+  }
+
+  if (!isFirebaseAdminConfigured()) {
+    return {
+      ok: false,
+      error: "ระบบยังไม่ได้เชื่อมต่อฐานข้อมูล กรุณาติดต่อผู้ดูแลระบบ",
+    };
+  }
+
+  const category = defaultCategories.find((c) => c.categoryId === parsed.data.categoryId);
+  if (!category) {
+    return { ok: false, error: "ไม่พบประเภทปัญหาที่เลือก" };
+  }
+
+  const values = parsed.data;
+  const isAnonymous = values.isAnonymous;
+
+  const db = getAdminFirestore();
+
+  // Only the fields a public reporter is allowed to set ever reach Firestore
+  // here — status/assignedTo/completion fields are fixed server-side.
+  const ticketData = {
+    categoryId: category.categoryId,
+    categoryNameSnapshot: category.name,
+    locationText: values.locationText,
+    latitude: null,
+    longitude: null,
+    accuracyMeters: null,
+    locationCapturedAt: null,
+    locationSource: null,
+    originalLatitude: null,
+    originalLongitude: null,
+    originalAccuracyMeters: null,
+    title: values.title,
+    description: values.description,
+    priority: values.priority,
+    status: "pending" as const,
+    reporterType: "teacher" as const,
+    reporterName: isAnonymous ? null : values.reporterName || null,
+    reporterContact: isAnonymous ? null : values.reporterContact || null,
+    isAnonymous,
+    assignedTo: null,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    completedAt: null,
+    completionNote: null,
+  };
+
+  // IDs are random; collisions are astronomically unlikely but guard anyway.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const ticketId = generateTicketId();
+    const ticketRef = db.collection("tickets").doc(ticketId);
+
+    try {
+      await db.runTransaction(async (tx) => {
+        const existing = await tx.get(ticketRef);
+        if (existing.exists) {
+          throw new Error("TICKET_ID_COLLISION");
+        }
+        tx.set(ticketRef, ticketData);
+        const historyRef = db.collection("status_history").doc();
+        tx.set(historyRef, {
+          ticketId,
+          fromStatus: null,
+          toStatus: "pending",
+          note: "สร้าง Ticket โดยผู้แจ้ง",
+          changedBy: "public",
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      });
+
+      return { ok: true, ticketId };
+    } catch (err) {
+      if (err instanceof Error && err.message === "TICKET_ID_COLLISION") {
+        continue;
+      }
+      console.error("createTicket failed", err);
+      return { ok: false, error: "บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" };
+    }
+  }
+
+  return { ok: false, error: "บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" };
+}
