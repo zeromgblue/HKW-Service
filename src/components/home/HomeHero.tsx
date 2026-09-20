@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
-import { EyeOff, ListChecks, MapPin, Search, Wrench } from "lucide-react";
+import { BellRing, Camera, EyeOff, Wrench } from "lucide-react";
+import { MyTickets } from "@/components/home/MyTickets";
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -32,15 +33,15 @@ const features = [
     color: "bg-violet-50 text-violet-600",
   },
   {
-    icon: MapPin,
-    title: "ระบุตำแหน่งแม่นยำ",
-    desc: "แนบ GPS หรือปักหมุดเอง",
+    icon: Camera,
+    title: "แนบรูปประกอบได้",
+    desc: "ถ่ายรูปปัญหาส่งให้ช่างดู",
     color: "bg-amber-50 text-amber-600",
   },
   {
-    icon: ListChecks,
-    title: "ติดตามสถานะได้",
-    desc: "รู้ความคืบหน้าทุกขั้นตอน",
+    icon: BellRing,
+    title: "ช่างรับทราบทันที",
+    desc: "งานเข้าถึงช่างแบบเรียลไทม์",
     color: "bg-emerald-50 text-emerald-600",
   },
 ];
@@ -73,7 +74,7 @@ export function HomeHero() {
         </div>
         <p className="max-w-xs text-sm leading-relaxed text-neutral-500">
           แอปสำหรับครูและบุคลากรแจ้งปัญหาหรือขอซ่อมสิ่งของ/สถานที่ภายในโรงเรียน
-          ใช้งานง่ายเหมือนแอปในมือถือ พร้อมติดตามสถานะได้ทุกที่ทุกเวลา
+          ใช้งานง่ายเหมือนแอปในมือถือ และส่งถึงช่างทันที
         </p>
       </motion.div>
 
@@ -94,6 +95,10 @@ export function HomeHero() {
         ))}
       </motion.div>
 
+      <motion.div variants={item}>
+        <MyTickets />
+      </motion.div>
+
       <div className="flex w-full flex-col gap-3">
         <motion.div variants={item}>
           <Link
@@ -106,21 +111,6 @@ export function HomeHero() {
             <span className="flex flex-1 flex-col text-left">
               <span className="text-base font-semibold">แจ้งซ่อม</span>
               <span className="text-xs text-blue-100">รายงานปัญหาที่พบ</span>
-            </span>
-          </Link>
-        </motion.div>
-
-        <motion.div variants={item}>
-          <Link
-            href="/track"
-            className="group flex items-center gap-4 rounded-2xl border border-neutral-200 bg-white px-5 py-4 text-neutral-900 shadow-sm transition-colors hover:bg-neutral-50 active:bg-neutral-100"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 transition-transform group-active:scale-90">
-              <Search className="h-5 w-5 text-neutral-700" strokeWidth={1.75} />
-            </span>
-            <span className="flex flex-1 flex-col text-left">
-              <span className="text-base font-semibold">ติดตามงาน</span>
-              <span className="text-xs text-neutral-500">ดูสถานะงานที่แจ้งไปแล้ว</span>
             </span>
           </Link>
         </motion.div>

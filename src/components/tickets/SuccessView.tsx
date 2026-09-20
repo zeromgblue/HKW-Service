@@ -3,9 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { CheckCircle2, ClipboardList, Home, Info, MapPin, Tag } from "lucide-react";
+import { CheckCircle2, ClipboardList, Eye, Home, Info, MapPin, Tag } from "lucide-react";
 import { CopyTicketId } from "@/components/tickets/CopyTicketId";
-import { statusLabels } from "@/lib/tickets/statusLabels";
+import { NotifyMe } from "@/components/tickets/NotifyMe";
 import type { Ticket, TicketImage } from "@/types/ticket";
 
 export function SuccessView({ ticket, images }: { ticket: Ticket; images: TicketImage[] }) {
@@ -45,7 +45,6 @@ export function SuccessView({ ticket, images }: { ticket: Ticket; images: Ticket
         </div>
 
         <dl className="mt-6 flex flex-col divide-y divide-neutral-100 text-sm">
-          <InfoRow icon={Info} label="สถานะ" value={statusLabels[ticket.status]} highlight />
           <InfoRow icon={Tag} label="ประเภท" value={ticket.categoryNameSnapshot} />
           <InfoRow icon={ClipboardList} label="หัวข้อ" value={ticket.title} />
           <InfoRow icon={MapPin} label="สถานที่" value={ticket.locationText} />
@@ -74,17 +73,15 @@ export function SuccessView({ ticket, images }: { ticket: Ticket; images: Ticket
         )}
       </motion.div>
 
-      <motion.div
-        variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-        className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-800"
-      >
-        <p className="font-medium">วิธีติดตามงาน</p>
-        <p className="mt-1">
-          จดหรือคัดลอก Ticket ID นี้ไว้ แล้วไปที่หน้า &quot;ติดตามงาน&quot; เพื่อดูสถานะภายหลัง
-        </p>
-      </motion.div>
-
-      <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+      <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="flex flex-col gap-3">
+        <NotifyMe ticketId={ticket.ticketId} />
+        <Link
+          href={`/ticket/${ticket.ticketId}`}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 text-center text-sm font-semibold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700"
+        >
+          <Eye className="h-4 w-4" strokeWidth={1.75} />
+          ดูรายละเอียดและติดตามงาน
+        </Link>
         <Link
           href="/"
           className="flex items-center justify-center gap-2 rounded-2xl border border-neutral-200 bg-white px-6 py-3 text-center text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50"

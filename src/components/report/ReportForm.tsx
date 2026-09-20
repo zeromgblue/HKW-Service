@@ -18,6 +18,7 @@ import { uploadTicketImages } from "@/lib/actions/images";
 import { defaultCategories } from "@/data/categories";
 import { CategoryIcon } from "@/components/icons/CategoryIcon";
 import { ImagePicker } from "@/components/report/ImagePicker";
+import { rememberTicket } from "@/lib/myTickets";
 import {
   reportFormDefaultValues,
   reportFormSchema,
@@ -91,6 +92,8 @@ export function ReportForm() {
         setSubmitError(response.error);
         return;
       }
+
+      rememberTicket(response.ticketId);
 
       if (images.length > 0) {
         setIsUploadingImages(true);
@@ -217,16 +220,6 @@ export function ReportForm() {
       <fieldset className="flex flex-col gap-2.5">
         <label className="text-sm font-medium text-neutral-800">รูปภาพประกอบ</label>
         <ImagePicker onChange={setImages} />
-      </fieldset>
-
-      <fieldset className="flex items-center gap-3 rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/60 p-4">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-neutral-50 bg-white text-neutral-400 shadow-sm">
-          <MapPin className="h-4 w-4" strokeWidth={1.75} />
-        </span>
-        <div className="text-sm">
-          <p className="font-medium text-neutral-600">ตำแหน่ง GPS</p>
-          <p className="text-xs text-neutral-400">จะเปิดใช้งานใน Phase ถัดไป</p>
-        </div>
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">

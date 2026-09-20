@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
@@ -9,7 +9,13 @@ const notoSansThai = Noto_Sans_Thai({
 
 export const metadata: Metadata = {
   title: "HKW Service | ระบบแจ้งซ่อมโรงเรียน",
-  description: "ระบบแจ้งซ่อมและติดตามงานภายในโรงเรียน",
+  description: "ระบบแจ้งซ่อมภายในโรงเรียน",
+  icons: { apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "HKW ช่าง", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

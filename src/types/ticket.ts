@@ -1,12 +1,6 @@
 export type TicketPriority = "normal" | "urgent" | "critical";
 
-export type TicketStatus =
-  | "pending"
-  | "received"
-  | "in_progress"
-  | "waiting"
-  | "completed"
-  | "cancelled";
+export type TicketStatus = "pending" | "completed";
 
 export type ReporterType = "teacher" | "staff";
 
@@ -37,6 +31,7 @@ export interface Ticket {
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
+  completedBy: string | null;
   completionNote: string | null;
 }
 

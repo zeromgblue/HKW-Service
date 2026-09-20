@@ -1,8 +1,10 @@
 "use server";
 
+import { after } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { defaultCategories } from "@/data/categories";
 import { getAdminFirestore, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
+import { sendPushToAll } from "@/lib/push";
 import { generateTicketId } from "@/lib/tickets/generateTicketId";
 import { reportFormSchema } from "@/lib/validation/ticket";
 
@@ -60,6 +62,7 @@ export async function createTicket(input: unknown): Promise<CreateTicketResult> 
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
     completedAt: null,
+    completedBy: null,
     completionNote: null,
   };
 
@@ -75,16 +78,21 @@ export async function createTicket(input: unknown): Promise<CreateTicketResult> 
           throw new Error("TICKET_ID_COLLISION");
         }
         tx.set(ticketRef, ticketData);
-        const historyRef = db.collection("status_history").doc();
-        tx.set(historyRef, {
-          ticketId,
-          fromStatus: null,
-          toStatus: "pending",
-          note: "สร้าง Ticket โดยผู้แจ้ง",
-          changedBy: "public",
-          createdAt: FieldValue.serverTimestamp(),
-        });
       });
+
+      // Alert staff phones after the response is sent so reporting never waits on push delivery.
+      const urgent = values.priority !== "normal";
+      after(() =>
+        sendPushToAll(
+          {
+            title: urgent ? "งานแจ้งซ่อมด่วน!" : "มีงานแจ้งซ่อมใหม่",
+            body: `${values.title} · ${values.locationText}`,
+            url: `/staff/tickets/${ticketId}`,
+            tag: ticketId,
+          },
+          urgent,
+        ).catch((e) => console.error("push notify failed", e)),
+      );
 
       return { ok: true, ticketId };
     } catch (err) {

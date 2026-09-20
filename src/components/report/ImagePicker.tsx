@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Camera, ImagePlus, X } from "lucide-react";
+import { Camera, ImagePlus, Loader2, X } from "lucide-react";
+import { shrinkImage } from "@/lib/shrinkImage";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_RAW_FILE_SIZE = 25 * 1024 * 1024; // original photo, before shrinking
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // after shrinking (server limit)
 const MAX_FILES = 3;
 
 interface PickedImage {
@@ -20,6 +22,7 @@ export function ImagePicker({
 }) {
   const [images, setImages] = useState<PickedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -29,7 +32,7 @@ export function ImagePicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleFiles(fileList: FileList | null) {
+  async function handleFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
     setError(null);
 
@@ -42,17 +45,24 @@ export function ImagePicker({
     }
 
     const accepted: PickedImage[] = [];
-    for (const file of incoming.slice(0, room)) {
-      if (!ALLOWED_TYPES.has(file.type)) {
+    setProcessing(true);
+    for (const original of incoming.slice(0, room)) {
+      if (!ALLOWED_TYPES.has(original.type)) {
         setError("รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP");
         continue;
       }
+      if (original.size > MAX_RAW_FILE_SIZE) {
+        setError("ไฟล์ใหญ่เกินไป (ไม่เกิน 25MB)");
+        continue;
+      }
+      const file = await shrinkImage(original);
       if (file.size > MAX_FILE_SIZE) {
-        setError("ไฟล์ต้องมีขนาดไม่เกิน 5MB");
+        setError("ไฟล์ยังใหญ่เกินไปหลังย่อรูป กรุณาเลือกรูปอื่น");
         continue;
       }
       accepted.push({ file, previewUrl: URL.createObjectURL(file) });
     }
+    setProcessing(false);
 
     if (accepted.length > 0) {
       const next = [...images, ...accepted];
@@ -99,7 +109,13 @@ export function ImagePicker({
           ))}
         </AnimatePresence>
 
-        {images.length < MAX_FILES && (
+        {processing && (
+          <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-400">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        )}
+
+        {images.length < MAX_FILES && !processing && (
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -125,7 +141,7 @@ export function ImagePicker({
 
       <p className="flex items-center gap-1.5 text-xs text-neutral-400">
         <Camera className="h-3.5 w-3.5" strokeWidth={1.75} />
-        แนบได้สูงสุด {MAX_FILES} รูป (JPG, PNG, WebP ไม่เกิน 5MB ต่อไฟล์)
+        แนบได้สูงสุด {MAX_FILES} รูป (JPG, PNG, WebP) ระบบย่อรูปให้อัตโนมัติ
       </p>
 
       {error && (

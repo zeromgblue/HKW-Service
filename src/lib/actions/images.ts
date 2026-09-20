@@ -8,7 +8,8 @@ import type { TicketImageType } from "@/types/ticket";
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_FILES = 3;
+const MAX_FILES = 3; // per upload
+const MAX_IMAGES_PER_TYPE = 6; // per ticket, per before/after
 
 export type UploadTicketImagesResult =
   | { ok: true; uploaded: number; failed: number }
@@ -27,6 +28,9 @@ export async function uploadTicketImages(
   if (!ticketId) {
     return { ok: false, error: "ไม่พบ Ticket ID" };
   }
+  if (type !== "before" && type !== "after") {
+    return { ok: false, error: "ประเภทรูปไม่ถูกต้อง" };
+  }
 
   if (!isCloudinaryConfigured()) {
     return { ok: false, error: "ระบบอัปโหลดรูปภาพยังไม่ได้ตั้งค่า" };
@@ -43,6 +47,18 @@ export async function uploadTicketImages(
   if (!ticketSnap.exists) {
     return { ok: false, error: "ไม่พบ Ticket นี้ในระบบ" };
   }
+
+  const existing = await db
+    .collection("ticket_images")
+    .where("ticketId", "==", ticketId)
+    .where("type", "==", type)
+    .count()
+    .get();
+  const room = MAX_IMAGES_PER_TYPE - existing.data().count;
+  if (room <= 0) {
+    return { ok: false, error: "แนบรูปครบจำนวนสูงสุดของงานนี้แล้ว" };
+  }
+  candidates.splice(room);
 
   const cloudinary = getCloudinary();
 
