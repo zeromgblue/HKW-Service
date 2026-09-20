@@ -59,8 +59,10 @@ export function HomeHero() {
           <Image
             src="/school-logo.png"
             alt="โลโก้โรงเรียน"
-            width={79}
-            height={78}
+            width={384}
+            height={384}
+            quality={95}
+            sizes="112px"
             priority
             className="h-28 w-28 object-contain"
           />
