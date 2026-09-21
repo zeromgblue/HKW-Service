@@ -120,7 +120,19 @@ export function ReportForm() {
       <fieldset className="flex flex-col gap-2.5">
         <label className="text-sm font-medium text-neutral-800">
           ประเภทปัญหา <span className="text-red-600">*</span>
-        </label>
+        </label>โลโก้โรงเรียน
+        ระบบแจ้งซ่อมโรงเรียน
+        
+        HKW Service
+        แอปสำหรับครูและบุคลากรแจ้งปัญหาหรือขอซ่อมสิ่งของ/สถานที่ภายในโรงเรียน ใช้งานง่ายเหมือนแอปในมือถือ และส่งถึงช่างทันที
+        
+        แจ้งซ่อมได้ทันที
+        
+        ไม่ต้องเข้าสู่ระบบ
+        
+        ไม่ระบุตัวตนได้
+        
+        เป็นส่วนตัว ปลอดภัย
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {defaultCategories
             .filter((c) => c.active)
