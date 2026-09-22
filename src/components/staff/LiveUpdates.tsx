@@ -89,7 +89,7 @@ export function LiveUpdates() {
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <BellRing className="h-4.5 w-4.5" strokeWidth={1.75} />
               </span>
-              <Link href={`/staff/tickets/${t.ticketId}`} className="min-w-0 flex-1">
+              <Link href={`/c/tickets/${t.ticketId}`} className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-neutral-900">
                   {t.priority === "normal" ? "มีงานใหม่เข้ามา" : "งานด่วนเข้ามา!"}
                 </p>

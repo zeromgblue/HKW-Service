@@ -11,7 +11,7 @@ export function TicketCard({ ticket, stale }: { ticket: Ticket; stale: boolean }
 
   return (
     <Link
-      href={`/staff/tickets/${ticket.ticketId}`}
+      href={`/c/tickets/${ticket.ticketId}`}
       className="group flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md"
     >
       <div className="flex items-start justify-between gap-3">

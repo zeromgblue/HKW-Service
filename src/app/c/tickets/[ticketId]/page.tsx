@@ -12,7 +12,7 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function StaffTicketPage(props: PageProps<"/staff/tickets/[ticketId]">) {
+export default async function StaffTicketPage(props: PageProps<"/c/tickets/[ticketId]">) {
   const { ticketId } = await props.params;
   const [ticket, images] = await Promise.all([getTicket(ticketId), getTicketImages(ticketId)]);
 
@@ -23,7 +23,7 @@ export default async function StaffTicketPage(props: PageProps<"/staff/tickets/[
           <SearchX className="h-7 w-7" strokeWidth={1.75} />
         </div>
         <p className="text-lg font-semibold text-neutral-900">ไม่พบงานนี้</p>
-        <BackLink href="/staff" label="กลับหน้ารายการงาน" />
+        <BackLink href="/c" label="กลับหน้ารายการงาน" />
       </main>
     );
   }
@@ -34,7 +34,7 @@ export default async function StaffTicketPage(props: PageProps<"/staff/tickets/[
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-5 py-8">
-      <BackLink href="/staff" label="กลับหน้ารายการงาน" />
+      <BackLink href="/c" label="กลับหน้ารายการงาน" />
 
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">

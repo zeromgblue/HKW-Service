@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "HKW Service — ช่างซ่อม",
     short_name: "HKW ช่าง",
     description: "รับงานแจ้งซ่อมและจบงานภายในโรงเรียน",
-    start_url: "/staff",
+    start_url: "/c",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

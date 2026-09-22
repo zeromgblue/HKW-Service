@@ -59,7 +59,7 @@ export async function sendTestPush(endpoint: unknown): Promise<PushActionResult>
   const ok = await sendPushToEndpoint(endpoint, {
     title: "ทดสอบการแจ้งเตือน",
     body: "อุปกรณ์นี้พร้อมรับแจ้งเตือนงานใหม่แล้ว",
-    url: "/staff",
+    url: "/c",
     tag: "hkw-test",
     force: true,
   });

@@ -24,7 +24,7 @@ const tabs: { key: StatusTab; label: string; icon: typeof Inbox; tone: string }[
   { key: "done", label: "เสร็จแล้ว", icon: CheckCircle2, tone: "text-emerald-700 bg-emerald-50" },
 ];
 
-export default async function DashboardPage(props: PageProps<"/staff">) {
+export default async function DashboardPage(props: PageProps<"/c">) {
   const filters = parseFilters(await props.searchParams);
 
   const allTickets = await listTickets();
@@ -39,7 +39,7 @@ export default async function DashboardPage(props: PageProps<"/staff">) {
     if (filters.category) p.set("category", filters.category);
     if (filters.priority) p.set("priority", filters.priority);
     const qs = p.toString();
-    return qs ? `/staff?${qs}` : "/staff";
+    return qs ? `/c?${qs}` : "/c";
   };
 
   const selectClass =
@@ -86,7 +86,7 @@ export default async function DashboardPage(props: PageProps<"/staff">) {
         </p>
       )}
 
-      <form method="get" action="/staff" className="flex flex-col gap-2.5 sm:flex-row">
+      <form method="get" action="/c" className="flex flex-col gap-2.5 sm:flex-row">
         {filters.tab !== "all" && <input type="hidden" name="tab" value={filters.tab} />}
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />

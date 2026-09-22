@@ -87,7 +87,7 @@ export async function createTicket(input: unknown): Promise<CreateTicketResult> 
           {
             title: urgent ? "งานแจ้งซ่อมด่วน!" : "มีงานแจ้งซ่อมใหม่",
             body: `${values.title} · ${values.locationText}`,
-            url: `/staff/tickets/${ticketId}`,
+            url: `/c/tickets/${ticketId}`,
             tag: ticketId,
           },
           urgent,

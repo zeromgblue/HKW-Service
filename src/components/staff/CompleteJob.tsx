@@ -244,7 +244,7 @@ function SuccessOverlay({ onClose }: { onClose: () => void }) {
           ดูรายละเอียดงาน
         </button>
         <Link
-          href="/staff"
+          href="/c"
           className="rounded-2xl border border-neutral-200 bg-white px-6 py-3 text-center text-sm font-medium text-neutral-700 hover:bg-neutral-50"
         >
           กลับหน้ารายการงาน
