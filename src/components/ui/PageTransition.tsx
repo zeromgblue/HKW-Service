@@ -10,9 +10,9 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   return (
     <motion.div
-      initial={reduce ? false : { opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 28, mass: 0.8 }}
+      initial={reduce ? false : { opacity: 0, y: 28, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 340, damping: 26, mass: 0.9 }}
       className="flex flex-1 flex-col"
     >
       {children}
