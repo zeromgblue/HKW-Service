@@ -15,6 +15,10 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  /* Backs up the viewport meta tag: `touch-action: manipulation` still allows pinch-zoom, only
+     `pan-x pan-y` (panning, no zoom gesture) actually blocks it — needed because iOS Safari
+     ignores `user-scalable=no` in the viewport meta tag for accessibility reasons. */
+  touch-action: pan-x pan-y;
 }
 
 @keyframes check-pop {
@@ -33,4 +37,25 @@ body {
 
 .animate-check-pop {
   animation: check-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes shimmer-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #eceef2;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
 }
