@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { getAdminFirestore, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
+import { getCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary/client";
 import { sendPushToTicket } from "@/lib/push";
 
 export type StaffActionResult = { ok: true } | { ok: false; error: string };
@@ -12,6 +13,8 @@ const completeSchema = z.object({
   ticketId: z.string().trim().min(1).max(40),
   actorName: z.string().trim().min(2, "กรุณาใส่ชื่อผู้ดำเนินการ").max(60),
 });
+
+const ticketIdSchema = z.string().trim().min(1).max(40);
 
 const GENERIC_ERROR = "บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง";
 
@@ -68,6 +71,46 @@ export async function completeTicket(input: unknown): Promise<StaffActionResult>
     if (code === "ALREADY_DONE") return { ok: false, error: "งานนี้ถูกจบไปแล้ว กรุณารีเฟรชหน้า" };
     if (code === "NO_AFTER_PHOTO") return { ok: false, error: "กรุณาอัปโหลดรูปหลังซ่อมอย่างน้อย 1 รูปก่อนจบงาน" };
     console.error("completeTicket failed", err);
+    return { ok: false, error: GENERIC_ERROR };
+  }
+}
+
+// Lets staff clear clutter from the dashboard. Removes the ticket doc plus every image record
+// and push subscription tied to it; Cloudinary assets are best-effort (a failed cleanup there
+// must never block the ticket itself from disappearing).
+export async function deleteTicket(ticketId: unknown): Promise<StaffActionResult> {
+  const parsed = ticketIdSchema.safeParse(ticketId);
+  if (!parsed.success) return { ok: false, error: "ข้อมูลไม่ถูกต้อง" };
+  if (!isFirebaseAdminConfigured()) return { ok: false, error: GENERIC_ERROR };
+
+  const id = parsed.data;
+  const db = getAdminFirestore();
+  const ticketRef = db.collection("tickets").doc(id);
+
+  try {
+    const [ticketSnap, imagesSnap, pushSnap] = await Promise.all([
+      ticketRef.get(),
+      db.collection("ticket_images").where("ticketId", "==", id).get(),
+      db.collection("ticket_push").where("ticketId", "==", id).get(),
+    ]);
+    if (!ticketSnap.exists) return { ok: false, error: "ไม่พบงานนี้ในระบบ" };
+
+    const batch = db.batch();
+    batch.delete(ticketRef);
+    for (const doc of imagesSnap.docs) batch.delete(doc.ref);
+    for (const doc of pushSnap.docs) batch.delete(doc.ref);
+    await batch.commit();
+
+    if (isCloudinaryConfigured() && imagesSnap.docs.length > 0) {
+      const cloudinary = getCloudinary();
+      await Promise.allSettled(
+        imagesSnap.docs.map((doc) => cloudinary.uploader.destroy(doc.data().storagePath)),
+      );
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.error("deleteTicket failed", err);
     return { ok: false, error: GENERIC_ERROR };
   }
 }

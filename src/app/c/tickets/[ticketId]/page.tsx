@@ -6,6 +6,7 @@ import { BackLink } from "@/components/ui/BackLink";
 import { ImageGallery } from "@/components/ui/ImageGallery";
 import { PriorityBadge, StatusBadge } from "@/components/tickets/Badges";
 import { CompleteJob } from "@/components/staff/CompleteJob";
+import { DeleteTicket } from "@/components/staff/DeleteTicket";
 
 export const metadata = {
   title: "รายละเอียดงาน | HKW Service",
@@ -103,6 +104,10 @@ export default async function StaffTicketPage(props: PageProps<"/c/tickets/[tick
           )}
         </section>
       )}
+
+      <div className="flex justify-center pt-2">
+        <DeleteTicket ticketId={ticket.ticketId} />
+      </div>
     </main>
   );
 }

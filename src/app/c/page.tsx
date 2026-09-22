@@ -9,7 +9,7 @@ import {
   type StatusTab,
 } from "@/lib/tickets/filterTickets";
 import { defaultCategories } from "@/data/categories";
-import { TicketCard } from "@/components/staff/TicketCard";
+import { TicketList } from "@/components/staff/TicketList";
 import { LiveUpdates } from "@/components/staff/LiveUpdates";
 import { PushSetup } from "@/components/staff/PushSetup";
 
@@ -128,13 +128,7 @@ export default async function DashboardPage(props: PageProps<"/c">) {
           </p>
         </div>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {visible.map((ticket) => (
-            <li key={ticket.ticketId}>
-              <TicketCard ticket={ticket} stale={staleIds.has(ticket.ticketId)} />
-            </li>
-          ))}
-        </ul>
+        <TicketList rows={visible.map((ticket) => ({ ticket, stale: staleIds.has(ticket.ticketId) }))} />
       )}
     </main>
   );

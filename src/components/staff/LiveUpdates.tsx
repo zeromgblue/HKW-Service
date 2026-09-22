@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -48,7 +48,9 @@ export function LiveUpdates() {
       seen.current.set(dedupeKey, now);
 
       clearTimeout(refreshTimer.current);
-      refreshTimer.current = setTimeout(() => router.refresh(), 300);
+      // startTransition keeps the current list interactive (scroll, taps) while the refetch is
+      // in flight, instead of the whole page feeling like it stalls until new data lands.
+      refreshTimer.current = setTimeout(() => startTransition(() => router.refresh()), 300);
 
       if (event.kind === "created") {
         const key = `${event.ticketId}-${now}`;

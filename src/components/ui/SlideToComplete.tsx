@@ -106,8 +106,12 @@ export function SlideToComplete({
 
   const dragging = phase === "dragging";
   const committing = phase === "committing";
-  const thumbLeft = `calc(${PAD}px + ${progress} * (100% - ${THUMB + PAD * 2}px))`;
-  const fillWidth = `calc(${PAD}px + ${progress} * (100% - ${THUMB + PAD * 2}px) + ${THUMB + PAD}px)`;
+  // Positioned with `transform` (not `left`/`width`) so every drag frame is compositor-only —
+  // no layout/paint thrash — which is what keeps this smooth on mid-range Android/iOS.
+  const travel = maxTravel();
+  const trackWidth = trackRef.current?.clientWidth || 1;
+  const thumbOffset = PAD + progress * travel;
+  const fillScale = (thumbOffset + THUMB + PAD) / trackWidth;
 
   return (
     <div
@@ -118,10 +122,10 @@ export function SlideToComplete({
     >
       <div
         aria-hidden="true"
-        className={`absolute inset-y-0 left-0 rounded-full ${committing ? "bg-emerald-500" : "bg-blue-500/20"} ${
-          dragging ? "" : "transition-all duration-300"
+        className={`absolute inset-y-0 left-0 w-full origin-left rounded-full ${committing ? "bg-emerald-500" : "bg-blue-500/20"} ${
+          dragging ? "" : "transition-transform duration-300 ease-out"
         }`}
-        style={{ width: fillWidth }}
+        style={{ transform: `scaleX(${fillScale})`, willChange: "transform" }}
       />
       <span
         className={`pointer-events-none absolute inset-0 flex items-center justify-center pl-12 text-sm font-semibold ${
@@ -145,9 +149,16 @@ export function SlideToComplete({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
         onKeyDown={onKeyDown}
-        style={{ left: thumbLeft, touchAction: "none", width: THUMB, height: THUMB, top: PAD }}
-        className={`absolute flex items-center justify-center rounded-full text-white shadow-md outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
-          dragging ? "" : "transition-[left] duration-300 ease-out"
+        style={{
+          transform: `translateX(${thumbOffset}px)`,
+          touchAction: "none",
+          width: THUMB,
+          height: THUMB,
+          top: PAD,
+          willChange: "transform",
+        }}
+        className={`absolute left-0 flex items-center justify-center rounded-full text-white shadow-md outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
+          dragging ? "" : "transition-transform duration-300 ease-out"
         } ${disabled ? "cursor-not-allowed bg-neutral-300" : committing ? "bg-emerald-600" : "cursor-grab bg-blue-600 active:cursor-grabbing"}`}
       >
         {committing ? (
