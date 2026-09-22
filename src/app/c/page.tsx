@@ -60,12 +60,12 @@ export default async function DashboardPage(props: PageProps<"/c">) {
         <PushSetup />
 
         <nav aria-label="กรองตามสถานะ" className="grid grid-cols-3 gap-3">
-          {tabs.map(({ key, label, icon, tone }) => (
+          {tabs.map(({ key, label, icon: Icon, tone }) => (
             <StatusTabLink
               key={key}
               href={tabHref(key)}
               active={filters.tab === key}
-              icon={icon}
+              icon={<Icon className="h-4 w-4" strokeWidth={1.75} />}
               tone={tone}
               count={counts[key]}
               label={label}

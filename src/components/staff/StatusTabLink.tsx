@@ -2,21 +2,23 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 const MotionLink = motion.create(Link);
 
+// `icon` is a pre-rendered element (not a component reference) because a Lucide icon
+// *component* can't cross the server→client boundary as a prop — only already-rendered JSX can.
 export function StatusTabLink({
   href,
   active,
-  icon: Icon,
+  icon,
   tone,
   count,
   label,
 }: {
   href: string;
   active: boolean;
-  icon: LucideIcon;
+  icon: ReactNode;
   tone: string;
   count: number;
   label: string;
@@ -31,9 +33,7 @@ export function StatusTabLink({
         active ? "border-blue-500 ring-2 ring-blue-100" : "border-neutral-200 hover:border-neutral-300"
       } bg-white`}
     >
-      <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${tone}`}>
-        <Icon className="h-4 w-4" strokeWidth={1.75} />
-      </span>
+      <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${tone}`}>{icon}</span>
       <span className="text-2xl font-bold text-neutral-900">{count}</span>
       <span className="text-xs text-neutral-500">{label}</span>
     </MotionLink>
