@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent } from "react";
 import { ChevronsRight, Loader2 } from "lucide-react";
 
@@ -27,6 +27,17 @@ export function SlideToComplete({
   const dragRef = useRef<{ startX: number; startProgress: number } | null>(null);
   const [progress, setProgress] = useState(0); // 0..1
   const [phase, setPhase] = useState<Phase>("idle");
+  // Tracked in state (rather than read from the ref during render) so the transform-based
+  // positioning below can react to layout changes without touching a ref while rendering.
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setTrackWidth(entry.contentRect.width));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   function maxTravel() {
     const width = trackRef.current?.clientWidth ?? 0;
@@ -108,10 +119,9 @@ export function SlideToComplete({
   const committing = phase === "committing";
   // Positioned with `transform` (not `left`/`width`) so every drag frame is compositor-only —
   // no layout/paint thrash — which is what keeps this smooth on mid-range Android/iOS.
-  const travel = maxTravel();
-  const trackWidth = trackRef.current?.clientWidth || 1;
+  const travel = Math.max(1, trackWidth - THUMB - PAD * 2);
   const thumbOffset = PAD + progress * travel;
-  const fillScale = (thumbOffset + THUMB + PAD) / trackWidth;
+  const fillScale = (thumbOffset + THUMB + PAD) / (trackWidth || 1);
 
   return (
     <div

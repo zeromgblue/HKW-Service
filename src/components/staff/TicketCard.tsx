@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { Clock, MapPin } from "lucide-react";
 import { defaultCategories } from "@/data/categories";
 import { CategoryIcon } from "@/components/icons/CategoryIcon";
@@ -6,13 +9,17 @@ import { PriorityBadge, StatusBadge } from "@/components/tickets/Badges";
 import { formatThaiDateTime } from "@/lib/formatDate";
 import type { Ticket } from "@/types/ticket";
 
+const MotionLink = motion.create(Link);
+
 export function TicketCard({ ticket, stale }: { ticket: Ticket; stale: boolean }) {
   const category = defaultCategories.find((c) => c.categoryId === ticket.categoryId);
 
   return (
-    <Link
+    <MotionLink
       href={`/c/tickets/${ticket.ticketId}`}
-      className="group flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      className="group flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md active:border-blue-300"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
@@ -43,6 +50,6 @@ export function TicketCard({ ticket, stale }: { ticket: Ticket; stale: boolean }
           {stale && " · ค้างนาน"}
         </span>
       </div>
-    </Link>
+    </MotionLink>
   );
 }
