@@ -21,6 +21,7 @@ import { BackLink } from "@/components/ui/BackLink";
 import { ImageGallery } from "@/components/ui/ImageGallery";
 import { PriorityBadge, StatusBadge } from "@/components/tickets/Badges";
 import { DeleteTicket } from "@/components/staff/DeleteTicket";
+import { Reveal } from "@/components/ui/Reveal";
 
 export default async function AdminTicketPage(props: { params: Promise<{ ticketId: string }> }) {
   await requireAdmin();
@@ -48,7 +49,8 @@ export default async function AdminTicketPage(props: { params: Promise<{ ticketI
   const named = !ticket.isAnonymous && Boolean(ticket.reporterName);
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-5 py-7">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 sm:px-5 sm:py-7">
+      <Reveal className="flex flex-col gap-5">
       <BackLink href="/admin/tickets" label="กลับหน้ารายการงาน" />
 
       <header className="flex flex-col gap-2">
@@ -59,8 +61,10 @@ export default async function AdminTicketPage(props: { params: Promise<{ ticketI
         <h1 className="text-2xl font-bold text-neutral-900">{ticket.title}</h1>
         <p className="text-sm text-neutral-400">{ticket.ticketId}</p>
       </header>
+      </Reveal>
 
-      <section className="flex flex-col gap-4 rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm">
+      <Reveal index={1}>
+      <section className="flex flex-col gap-4 rounded-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
         <dl className="flex flex-col divide-y divide-neutral-100 text-sm">
           <Row icon={Tag} label="ประเภท" value={ticket.categoryNameSnapshot} />
           <Row icon={MapPin} label="สถานที่" value={ticket.locationText} />
@@ -91,7 +95,9 @@ export default async function AdminTicketPage(props: { params: Promise<{ ticketI
           </div>
         )}
       </section>
+      </Reveal>
 
+      <Reveal index={2}>
       {ticket.status === "completed" ? (
         <section className="flex flex-col gap-3 rounded-3xl border border-emerald-200 bg-emerald-50/50 p-5">
           <h2 className="flex items-center gap-2 text-base font-semibold text-emerald-800">
@@ -125,6 +131,7 @@ export default async function AdminTicketPage(props: { params: Promise<{ ticketI
           </Link>
         </section>
       )}
+      </Reveal>
 
       <div className="flex justify-center pt-2">
         <DeleteTicket ticketId={ticket.ticketId} redirectTo="/admin/tickets" />

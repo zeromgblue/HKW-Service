@@ -40,6 +40,12 @@ body {
   print-color-adjust: exact;
 }
 
+@media print {
+  .report-fit {
+    zoom: 1 !important; /* the on-screen fit-to-width shrink must not reach the paper */
+  }
+}
+
 .report-sheet tr,
 .report-avoid-break {
   break-inside: avoid;

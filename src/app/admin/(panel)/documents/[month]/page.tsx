@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { requireAdmin } from "@/lib/admin/session";
 import { listMonthTickets } from "@/lib/reports/listMonthTickets";
 import {
@@ -16,6 +16,11 @@ import {
 import { statusLabels } from "@/lib/tickets/statusLabels";
 import { BackLink } from "@/components/ui/BackLink";
 import { PrintButton } from "@/components/admin/PrintButton";
+import { DownloadPdfButton } from "@/components/admin/DownloadPdfButton";
+import { ReportViewport } from "@/components/admin/ReportViewport";
+import { Reveal } from "@/components/ui/Reveal";
+
+const SHEET_ID = "report-sheet";
 
 function shiftMonth(monthKey: string, by: number): string {
   const [year, month] = monthKey.split("-").map(Number);
@@ -24,22 +29,26 @@ function shiftMonth(monthKey: string, by: number): string {
 
 export async function generateMetadata(props: { params: Promise<{ month: string }> }) {
   const { month } = await props.params;
-  // The browser uses the page title as the default PDF file name.
+  // The browser uses the page title as the default file name when printing to PDF.
   return { title: isMonthKey(month) ? `รายงานแจ้งซ่อม ${formatThaiMonth(month)}` : "รายงานแจ้งซ่อม" };
 }
 
-export default async function MonthlyReportPage(props: { params: Promise<{ month: string }> }) {
+export default async function MonthlyReportPage(props: {
+  params: Promise<{ month: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireAdmin();
 
   const { month: monthKey } = await props.params;
   if (!isMonthKey(monthKey)) notFound();
+  // The documents list links here with ?do=print or ?do=pdf to start that action right away.
+  const { do: action } = await props.searchParams;
 
   const tickets = await listMonthTickets(monthKey);
   const summary = summarize(tickets);
   const monthName = formatThaiMonth(monthKey);
   const [year, month] = monthKey.split("-").map(Number);
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const maxCategory = Math.max(1, ...summary.categories.map((c) => c.total));
   const nextKey = shiftMonth(monthKey, 1);
 
   const kpis = [
@@ -53,12 +62,18 @@ export default async function MonthlyReportPage(props: { params: Promise<{ month
     },
   ];
 
+  const priorities = [
+    { label: priorityLabels.normal, value: summary.total - summary.urgent - summary.critical },
+    { label: priorityLabels.urgent, value: summary.urgent },
+    { label: priorityLabels.critical, value: summary.critical },
+  ];
+
   return (
     <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:block print:p-0">
-      <div className="flex w-full max-w-[210mm] flex-col gap-3 print:hidden">
+      <Reveal className="flex w-full max-w-[210mm] flex-col gap-3 print:hidden">
         <BackLink href="/admin/documents" label="กลับหน้าเอกสาร" />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center justify-between gap-1.5 sm:justify-start">
             <Link
               href={`/admin/documents/${shiftMonth(monthKey, -1)}`}
               aria-label="เดือนก่อนหน้า"
@@ -81,22 +96,23 @@ export default async function MonthlyReportPage(props: { params: Promise<{ month
               </span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={`/api/admin/report?month=${monthKey}`}
-              className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50"
-            >
-              <FileSpreadsheet className="h-4 w-4 text-emerald-600" strokeWidth={1.75} />
-              ดาวน์โหลด Excel
-            </a>
-            <PrintButton />
+          <div className="grid grid-cols-2 items-start gap-2 sm:flex">
+            <PrintButton autoStart={action === "print"} />
+            <DownloadPdfButton
+              targetId={SHEET_ID}
+              fileName={`รายงานแจ้งซ่อม-${monthName}.pdf`}
+              autoStart={action === "pdf"}
+            />
           </div>
         </div>
-      </div>
+      </Reveal>
 
-      {/* On a phone the A4 sheet is wider than the screen, so it scrolls sideways. */}
-      <div className="w-full overflow-x-auto pb-4 print:overflow-visible print:pb-0">
-        <article className="report-sheet mx-auto flex min-h-[297mm] w-[210mm] flex-col gap-5 bg-white p-[14mm] text-neutral-900 shadow-lg ring-1 ring-neutral-200 print:min-h-0 print:w-auto print:p-0 print:shadow-none print:ring-0">
+      <Reveal index={1} className="w-full">
+      <ReportViewport>
+        <article
+          id={SHEET_ID}
+          className="report-sheet mx-auto flex min-h-[297mm] w-[210mm] flex-col gap-6 bg-white p-[14mm] text-neutral-900 shadow-lg ring-1 ring-neutral-200 print:min-h-0 print:w-auto print:p-0 print:shadow-none print:ring-0"
+        >
           <header className="flex items-center gap-4 border-b-2 border-blue-700 pb-4">
             {/* eslint-disable-next-line @next/next/no-img-element -- a plain img always prints */}
             <img src="/school-logo.png" alt="โลโก้โรงเรียน" className="h-[72px] w-[72px] shrink-0 object-contain" />
@@ -115,7 +131,7 @@ export default async function MonthlyReportPage(props: { params: Promise<{ month
             </dl>
           </header>
 
-          <section aria-label="ตัวเลขสรุป" className="grid grid-cols-4 gap-3">
+          <section aria-label="ตัวเลขสรุป" className="report-avoid-break grid grid-cols-4 gap-3">
             {kpis.map((k) => (
               <div key={k.label} className="rounded-lg border border-neutral-200 px-3.5 py-3">
                 <p className="text-[10px] text-neutral-500">{k.label}</p>
@@ -131,48 +147,6 @@ export default async function MonthlyReportPage(props: { params: Promise<{ month
             </p>
           ) : (
             <>
-              <div className="report-avoid-break grid grid-cols-3 gap-5">
-                <section className="col-span-2">
-                  <SectionTitle>สรุปตามประเภทงาน</SectionTitle>
-                  <table className="w-full text-[11px]">
-                    <thead>
-                      <tr className="border-b border-neutral-300 text-left text-[10px] text-neutral-500">
-                        <th className="py-1.5 pr-2 font-medium">ประเภท</th>
-                        <th className="w-[34%] py-1.5 font-medium" aria-label="สัดส่วน" />
-                        <th className="py-1.5 pl-2 text-right font-medium">ทั้งหมด</th>
-                        <th className="py-1.5 pl-2 text-right font-medium">เสร็จ</th>
-                        <th className="py-1.5 pl-2 text-right font-medium">ค้าง</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {summary.categories.map((c) => (
-                        <tr key={c.categoryId} className="border-b border-neutral-100">
-                          <td className="py-1.5 pr-2">{c.name}</td>
-                          <td className="py-1.5">
-                            <div
-                              className="h-2 rounded-r bg-blue-600"
-                              style={{ width: `${Math.max(3, (c.total / maxCategory) * 100)}%` }}
-                            />
-                          </td>
-                          <td className="py-1.5 pl-2 text-right font-semibold tabular-nums">{c.total}</td>
-                          <td className="py-1.5 pl-2 text-right tabular-nums">{c.completed}</td>
-                          <td className="py-1.5 pl-2 text-right tabular-nums">{c.pending}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </section>
-
-                <section>
-                  <SectionTitle>สรุปตามความเร่งด่วน</SectionTitle>
-                  <dl className="text-[11px]">
-                    <SummaryLine label={priorityLabels.normal} value={summary.total - summary.urgent - summary.critical} />
-                    <SummaryLine label={priorityLabels.urgent} value={summary.urgent} />
-                    <SummaryLine label={priorityLabels.critical} value={summary.critical} />
-                  </dl>
-                </section>
-              </div>
-
               <section>
                 <SectionTitle>รายการงานแจ้งซ่อม ({summary.total} รายการ)</SectionTitle>
                 <table className="w-full table-fixed text-[10px] leading-snug">
@@ -240,6 +214,72 @@ export default async function MonthlyReportPage(props: { params: Promise<{ month
                   </tbody>
                 </table>
               </section>
+
+              <div className="report-avoid-break grid grid-cols-5 gap-4">
+                <section className="col-span-3 rounded-lg border border-neutral-200 p-4">
+                  <SectionTitle>สรุปตามประเภทงาน</SectionTitle>
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="border-b border-neutral-300 text-left text-[10px] text-neutral-500">
+                        <th className="py-1.5 pr-2 font-medium">ประเภท</th>
+                        <th className="w-[34%] py-1.5 font-medium">สัดส่วน</th>
+                        <th className="py-1.5 pl-2 text-right font-medium">ทั้งหมด</th>
+                        <th className="py-1.5 pl-2 text-right font-medium">เสร็จ</th>
+                        <th className="py-1.5 pl-2 text-right font-medium">ค้าง</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {summary.categories.map((c) => {
+                        const percent = Math.round((c.total / summary.total) * 100);
+                        return (
+                          <tr key={c.categoryId} className="border-b border-neutral-100 last:border-b-0">
+                            <td className="py-1.5 pr-2">{c.name}</td>
+                            <td className="py-1.5">
+                              <div className="flex items-center gap-2">
+                                {/* The gray track is 100% of the month, so the bar reads as a share. */}
+                                <div className="h-1.5 flex-1 rounded-full bg-neutral-100">
+                                  <div
+                                    className="h-1.5 rounded-full bg-blue-600"
+                                    style={{ width: `${Math.max(2, percent)}%` }}
+                                  />
+                                </div>
+                                <span className="w-8 shrink-0 text-right tabular-nums">{percent}%</span>
+                              </div>
+                            </td>
+                            <td className="py-1.5 pl-2 text-right font-semibold tabular-nums">{c.total}</td>
+                            <td className="py-1.5 pl-2 text-right tabular-nums">{c.completed}</td>
+                            <td className="py-1.5 pl-2 text-right tabular-nums">{c.pending}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </section>
+
+                <section className="col-span-2 rounded-lg border border-neutral-200 p-4">
+                  <SectionTitle>สรุปตามความเร่งด่วน</SectionTitle>
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="border-b border-neutral-300 text-left text-[10px] text-neutral-500">
+                        <th className="py-1.5 pr-2 font-medium">ระดับ</th>
+                        <th className="py-1.5 pl-2 text-right font-medium">จำนวน</th>
+                        <th className="py-1.5 pl-2 text-right font-medium">สัดส่วน</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {priorities.map((p) => (
+                        <tr key={p.label} className="border-b border-neutral-100 last:border-b-0">
+                          <td className="py-1.5 pr-2">{p.label}</td>
+                          <td className="py-1.5 pl-2 text-right font-semibold tabular-nums">{p.value}</td>
+                          <td className="py-1.5 pl-2 text-right tabular-nums">
+                            {Math.round((p.value / summary.total) * 100)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </section>
+              </div>
             </>
           )}
 
@@ -252,7 +292,8 @@ export default async function MonthlyReportPage(props: { params: Promise<{ month
             เอกสารนี้จัดทำโดยระบบ HKW Service · นับงานตามวันที่แจ้งซ่อม
           </footer>
         </article>
-      </div>
+      </ReportViewport>
+      </Reveal>
     </main>
   );
 }
@@ -260,15 +301,6 @@ export default async function MonthlyReportPage(props: { params: Promise<{ month
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="mb-2 border-l-[3px] border-blue-700 pl-2 text-[13px] font-bold leading-tight">{children}</h2>
-  );
-}
-
-function SummaryLine({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-baseline justify-between border-b border-neutral-100 py-1.5">
-      <dt>{label}</dt>
-      <dd className="font-semibold tabular-nums">{value} งาน</dd>
-    </div>
   );
 }
 
