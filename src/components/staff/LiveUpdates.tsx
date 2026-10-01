@@ -1,82 +1,83 @@
 "use client";
 
-import { startTransition, useEffect, useRef, useState } from "react";
+import { createContext, startTransition, useCallback, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { BellRing, X } from "lucide-react";
 import { playNewJobChime, prepareAudio } from "@/lib/sound";
+import { useEventStream } from "@/lib/useEventStream";
 
-interface TicketEvent {
+interface TicketChanged {
   kind: "created" | "updated";
   ticketId: string;
+  rev: number;
   title: string;
   locationText: string;
   priority: "normal" | "urgent" | "critical";
   status: "pending" | "completed";
 }
 
-interface Toast extends TicketEvent {
+type TicketEvent = TicketChanged | { kind: "deleted"; ticketId: string };
+
+interface Toast extends TicketChanged {
   key: string;
 }
 
-// Keeps the staff list live: refreshes the page data whenever a ticket changes and shows a
-// toast (with sound + vibration) for brand-new jobs.
-export function LiveUpdates() {
+const ConnectedContext = createContext(false);
+
+// Keeps every staff page live: one stream for the whole /c section refreshes the current page's
+// data whenever a ticket changes and shows a toast (with sound + vibration) for brand-new jobs.
+export function StaffLiveProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [connected, setConnected] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const seen = useRef(new Map<string, number>());
+  const seen = useRef(new Set<string>());
+  const announced = useRef(new Set<string>());
 
   useEffect(() => {
     // Browsers only allow sound after a gesture: arm audio on the first tap anywhere.
     const arm = () => prepareAudio();
     window.addEventListener("pointerdown", arm, { once: true });
-
-    const source = new EventSource("/api/staff/stream");
-    source.onopen = () => setConnected(true);
-    source.onerror = () => setConnected(false); // EventSource reconnects on its own
-
-    source.addEventListener("ticket", (e) => {
-      const event = JSON.parse((e as MessageEvent<string>).data) as TicketEvent;
-
-      // The stream can replay a recent change after a reconnect; ignore repeats.
-      const dedupeKey = `${event.kind}:${event.ticketId}:${event.status}`;
-      const now = Date.now();
-      if (now - (seen.current.get(dedupeKey) ?? 0) < 15000) return;
-      seen.current.set(dedupeKey, now);
-
+    return () => {
+      window.removeEventListener("pointerdown", arm);
       clearTimeout(refreshTimer.current);
-      // startTransition keeps the current list interactive (scroll, taps) while the refetch is
-      // in flight, instead of the whole page feeling like it stalls until new data lands.
-      refreshTimer.current = setTimeout(() => startTransition(() => router.refresh()), 300);
+    };
+  }, []);
 
-      if (event.kind === "created") {
-        const key = `${event.ticketId}-${now}`;
+  const refresh = useCallback(() => {
+    clearTimeout(refreshTimer.current);
+    // startTransition keeps the current page interactive (scroll, taps) while the refetch is
+    // in flight, instead of the whole page feeling like it stalls until new data lands.
+    refreshTimer.current = setTimeout(() => startTransition(() => router.refresh()), 300);
+  }, [router]);
+
+  const connected = useEventStream<TicketEvent>(
+    "/api/staff/stream",
+    "ticket",
+    (event) => {
+      // The stream replays recent changes after a reconnect; each revision counts once.
+      const dedupeKey = event.kind === "deleted" ? `deleted:${event.ticketId}` : `${event.ticketId}:${event.rev}`;
+      if (seen.current.has(dedupeKey)) return;
+      seen.current.add(dedupeKey);
+
+      refresh();
+
+      if (event.kind === "created" && !announced.current.has(event.ticketId)) {
+        announced.current.add(event.ticketId);
+        const key = `${event.ticketId}-${Date.now()}`;
         setToasts((list) => [{ ...event, key }, ...list].slice(0, 3));
         setTimeout(() => setToasts((list) => list.filter((t) => t.key !== key)), 8000);
         playNewJobChime();
         navigator.vibrate?.([200, 100, 200]);
       }
-    });
-
-    return () => {
-      window.removeEventListener("pointerdown", arm);
-      clearTimeout(refreshTimer.current);
-      source.close();
-    };
-  }, [router]);
+    },
+    refresh,
+  );
 
   return (
-    <>
-      <span
-        className="flex items-center gap-1.5 text-xs text-neutral-400"
-        title={connected ? "เชื่อมต่อเรียลไทม์อยู่" : "กำลังเชื่อมต่อใหม่..."}
-      >
-        <span className={`h-2 w-2 rounded-full ${connected ? "bg-emerald-500" : "animate-pulse bg-amber-400"}`} />
-        {connected ? "เรียลไทม์" : "กำลังเชื่อมต่อ..."}
-      </span>
+    <ConnectedContext value={connected}>
+      {children}
 
       <div aria-live="polite" className="pointer-events-none fixed inset-x-3 top-3 z-40 flex flex-col items-center gap-2">
         <AnimatePresence>
@@ -110,6 +111,21 @@ export function LiveUpdates() {
           ))}
         </AnimatePresence>
       </div>
-    </>
+    </ConnectedContext>
+  );
+}
+
+// The small "live" indicator; must be rendered inside StaffLiveProvider.
+export function LiveStatus() {
+  const connected = useContext(ConnectedContext);
+
+  return (
+    <span
+      className="flex shrink-0 items-center gap-1.5 text-xs text-neutral-400"
+      title={connected ? "เชื่อมต่อเรียลไทม์อยู่" : "กำลังเชื่อมต่อใหม่..."}
+    >
+      <span className={`h-2 w-2 rounded-full ${connected ? "bg-emerald-500" : "animate-pulse bg-amber-400"}`} />
+      {connected ? "เรียลไทม์" : "กำลังเชื่อมต่อ..."}
+    </span>
   );
 }

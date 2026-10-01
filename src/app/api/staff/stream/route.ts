@@ -1,84 +1,71 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { getAdminFirestore, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
+import { sseResponse } from "@/lib/sse";
+import { STAFF_FEED_DOC } from "@/lib/tickets/staffFeed";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Server-Sent Events: pushes a message to the staff page whenever a ticket is created or
-// changed, so the list updates without polling. Only the changed documents are read.
+// How far back a reconnecting client may ask to be caught up.
+const MAX_REPLAY_MS = 10 * 60 * 1000;
+// Small margin so a few seconds of clock skew between this server and Google can't hide events.
+const SKEW_MS = 5000;
+
+// Server-Sent Events: pushes a message to the staff pages whenever a ticket is created, changed
+// or deleted, so they update without polling. Only the changed documents are read.
 export async function GET(request: Request) {
   if (!isFirebaseAdminConfigured()) {
     return new Response("Database not configured", { status: 503 });
   }
 
-  const encoder = new TextEncoder();
-  // Small margin so a few seconds of clock skew between this server and Google can't hide events.
-  const since = Timestamp.fromMillis(Date.now() - 5000);
-  let unsubscribe: (() => void) | undefined;
-  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  // A reconnecting client sends the server time of the last message it saw; replaying from
+  // there means jobs that arrived while it was offline still raise their alert.
+  const now = Date.now();
+  const requested = Number(new URL(request.url).searchParams.get("since"));
+  const from = requested > 0 && requested <= now ? Math.max(requested, now - MAX_REPLAY_MS) : now;
+  const sinceMs = from - SKEW_MS;
 
-  const stream = new ReadableStream({
-    start(controller) {
-      let closed = false;
-      const write = (chunk: string) => {
-        if (!closed) controller.enqueue(encoder.encode(chunk));
-      };
-      const cleanup = () => {
-        if (closed) return;
-        closed = true;
-        unsubscribe?.();
-        if (heartbeat) clearInterval(heartbeat);
-        try {
-          controller.close();
-        } catch {
-          // Already closed by the runtime.
+  return sseResponse(request, ({ send, close }) => {
+    const db = getAdminFirestore();
+    const onError = (err: Error) => {
+      console.error("staff stream listener error", err);
+      close(); // the client reconnects and gets a fresh listener
+    };
+
+    const stopTickets = db
+      .collection("tickets")
+      .where("updatedAt", ">", Timestamp.fromMillis(sinceMs))
+      .onSnapshot((snap) => {
+        for (const change of snap.docChanges()) {
+          if (change.type === "removed") {
+            send("ticket", { kind: "deleted", ticketId: change.doc.id });
+            continue;
+          }
+          const d = change.doc.data();
+          const createdMs = d.createdAt?.toMillis?.() ?? 0;
+          send("ticket", {
+            kind: change.type === "added" && createdMs >= sinceMs ? "created" : "updated",
+            ticketId: change.doc.id,
+            rev: d.updatedAt?.toMillis?.() ?? 0,
+            title: d.title,
+            locationText: d.locationText,
+            priority: d.priority,
+            status: d.status,
+          });
         }
-      };
+      }, onError);
 
-      write("retry: 3000\n: connected\n\n");
-      heartbeat = setInterval(() => write(": ping\n\n"), 20000);
-      request.signal.addEventListener("abort", cleanup);
+    // A deleted ticket that hadn't changed recently is outside the query above, so deletions
+    // are also announced through one small marker document.
+    const stopFeed = db.doc(STAFF_FEED_DOC).onSnapshot((snap) => {
+      const d = snap.data();
+      if (!d?.deletedTicketId || (d.at?.toMillis?.() ?? 0) <= sinceMs) return;
+      send("ticket", { kind: "deleted", ticketId: d.deletedTicketId });
+    }, onError);
 
-      unsubscribe = getAdminFirestore()
-        .collection("tickets")
-        .where("updatedAt", ">", since)
-        .onSnapshot(
-          (snap) => {
-            for (const change of snap.docChanges()) {
-              if (change.type === "removed") continue;
-              const d = change.doc.data();
-              const createdMs = d.createdAt?.toMillis?.() ?? 0;
-              const kind = change.type === "added" && createdMs >= since.toMillis() ? "created" : "updated";
-              write(
-                `event: ticket\ndata: ${JSON.stringify({
-                  kind,
-                  ticketId: change.doc.id,
-                  title: d.title,
-                  locationText: d.locationText,
-                  priority: d.priority,
-                  status: d.status,
-                })}\n\n`,
-              );
-            }
-          },
-          (err) => {
-            console.error("staff stream listener error", err);
-            cleanup();
-          },
-        );
-    },
-    cancel() {
-      unsubscribe?.();
-      if (heartbeat) clearInterval(heartbeat);
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-    },
+    return () => {
+      stopTickets();
+      stopFeed();
+    };
   });
 }

@@ -14,12 +14,12 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { createTicket } from "@/lib/actions/tickets";
-import { uploadTicketImages } from "@/lib/actions/images";
 import { defaultCategories } from "@/data/categories";
 import { CategoryIcon } from "@/components/icons/CategoryIcon";
 import { ImagePicker } from "@/components/report/ImagePicker";
 import { rememberTicket } from "@/lib/myTickets";
 import {
+  MIN_REPORT_IMAGES,
   reportFormDefaultValues,
   reportFormSchema,
   type ReportFormValues,
@@ -52,7 +52,10 @@ const priorityOptions: {
   },
 ];
 
-type FieldErrors = Partial<Record<keyof ReportFormValues, string>>;
+type FieldErrors = Partial<Record<keyof ReportFormValues | "images", string>>;
+
+const reporterInputClass =
+  "rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-base text-neutral-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100";
 
 export function ReportForm() {
   const router = useRouter();
@@ -60,7 +63,6 @@ export function ReportForm() {
   const [images, setImages] = useState<File[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   function updateField<K extends keyof ReportFormValues>(key: K, value: ReportFormValues[K]) {
@@ -72,13 +74,20 @@ export function ReportForm() {
     if (isSubmitting) return;
 
     const result = reportFormSchema.safeParse(values);
+    const nextErrors: FieldErrors = {};
     if (!result.success) {
-      const nextErrors: FieldErrors = {};
       for (const issue of result.error.issues) {
         const key = issue.path[0] as keyof ReportFormValues;
         if (!nextErrors[key]) nextErrors[key] = issue.message;
       }
+    }
+    if (images.length < MIN_REPORT_IMAGES) {
+      nextErrors.images = "กรุณาแนบรูปภาพอย่างน้อย 1 รูป";
+    }
+    if (!result.success || nextErrors.images) {
       setErrors(nextErrors);
+      // The form is long on a phone: say so next to the button, where the reporter is looking.
+      setSubmitError("กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบถ้วน");
       return;
     }
 
@@ -87,29 +96,16 @@ export function ReportForm() {
     setIsSubmitting(true);
 
     try {
-      const response = await createTicket(result.data);
+      const response = await createTicket(result.data, images);
       if (!response.ok) {
         setSubmitError(response.error);
         return;
       }
 
       rememberTicket(response.ticketId);
-
-      if (images.length > 0) {
-        setIsUploadingImages(true);
-        try {
-          await uploadTicketImages(response.ticketId, "before", "public", images);
-        } catch (err) {
-          // Ticket already exists — don't block the reporter on a photo upload hiccup.
-          console.error("uploadTicketImages failed", err);
-        } finally {
-          setIsUploadingImages(false);
-        }
-      }
-
       router.push(`/success/${response.ticketId}`);
     } catch {
-      setSubmitError("เกิดข้อผิดพลาดที่ไม่คาดคิด กรุณาลองใหม่อีกครั้ง");
+      setSubmitError("ส่งข้อมูลไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง");
     } finally {
       setIsSubmitting(false);
     }
@@ -218,8 +214,15 @@ export function ReportForm() {
       </fieldset>
 
       <fieldset className="flex flex-col gap-2.5">
-        <label className="text-sm font-medium text-neutral-800">รูปภาพประกอบ</label>
+        <label className="text-sm font-medium text-neutral-800">
+          รูปภาพประกอบ <span className="text-red-600">*</span>
+        </label>
         <ImagePicker onChange={setImages} />
+        <AnimatePresence>
+          {errors.images && images.length < MIN_REPORT_IMAGES && (
+            <FieldError id="images-error">{errors.images}</FieldError>
+          )}
+        </AnimatePresence>
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
@@ -247,56 +250,73 @@ export function ReportForm() {
         </div>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-neutral-800">แจ้งแบบไม่ระบุชื่อ</p>
-            <p className="text-xs text-neutral-400">ไม่บันทึกชื่อและช่องทางติดต่อของคุณ</p>
-          </div>
-          <Switch
-            checked={values.isAnonymous}
-            onChange={(v) => updateField("isAnonymous", v)}
-            label="แจ้งแบบไม่ระบุชื่อ"
-          />
+      <fieldset className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+        <div>
+          <p className="text-sm font-medium text-neutral-800">ข้อมูลผู้แจ้งซ่อม</p>
+          <p className="text-xs text-neutral-400">ใช้ให้ช่างติดต่อกลับเมื่อต้องการข้อมูลเพิ่มเติม</p>
         </div>
 
-        <AnimatePresence initial={false}>
-          {!values.isAnonymous && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="flex flex-col gap-3 overflow-hidden"
-            >
-              <div className="flex flex-col gap-1">
-                <label htmlFor="reporterName" className="text-sm text-neutral-700">
-                  ชื่อผู้แจ้ง (ไม่บังคับ)
-                </label>
-                <input
-                  id="reporterName"
-                  type="text"
-                  value={values.reporterName}
-                  onChange={(e) => updateField("reporterName", e.target.value)}
-                  className="rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-base text-neutral-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="reporterContact" className="text-sm text-neutral-700">
-                  ช่องทางติดต่อ (ไม่บังคับ)
-                </label>
-                <input
-                  id="reporterContact"
-                  type="text"
-                  value={values.reporterContact}
-                  onChange={(e) => updateField("reporterContact", e.target.value)}
-                  placeholder="เบอร์โทร หรือ อีเมล"
-                  className="rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-base text-neutral-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="reporterName" className="text-sm text-neutral-700">
+            ชื่อผู้แจ้งซ่อม <span className="text-red-600">*</span>
+          </label>
+          <input
+            id="reporterName"
+            type="text"
+            autoComplete="name"
+            value={values.reporterName}
+            onChange={(e) => updateField("reporterName", e.target.value)}
+            placeholder="กรอกชื่อของคุณ"
+            aria-invalid={Boolean(errors.reporterName)}
+            aria-describedby={errors.reporterName ? "reporterName-error" : undefined}
+            className={reporterInputClass}
+          />
+          <AnimatePresence>
+            {errors.reporterName && <FieldError id="reporterName-error">{errors.reporterName}</FieldError>}
+          </AnimatePresence>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="reporterPhone" className="text-sm text-neutral-700">
+            เบอร์โทร <span className="text-red-600">*</span>
+          </label>
+          <input
+            id="reporterPhone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={values.reporterPhone}
+            onChange={(e) => updateField("reporterPhone", e.target.value)}
+            placeholder="เช่น 0812345678"
+            aria-invalid={Boolean(errors.reporterPhone)}
+            aria-describedby={errors.reporterPhone ? "reporterPhone-error" : undefined}
+            className={reporterInputClass}
+          />
+          <AnimatePresence>
+            {errors.reporterPhone && <FieldError id="reporterPhone-error">{errors.reporterPhone}</FieldError>}
+          </AnimatePresence>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="reporterContact" className="text-sm text-neutral-700">
+            ช่องทางการติดต่ออื่น <span className="text-neutral-400">(ไม่บังคับ)</span>
+          </label>
+          <input
+            id="reporterContact"
+            type="text"
+            value={values.reporterContact}
+            onChange={(e) => updateField("reporterContact", e.target.value)}
+            placeholder="เช่น LINE ID"
+            aria-invalid={Boolean(errors.reporterContact)}
+            aria-describedby={errors.reporterContact ? "reporterContact-error" : undefined}
+            className={reporterInputClass}
+          />
+          <AnimatePresence>
+            {errors.reporterContact && (
+              <FieldError id="reporterContact-error">{errors.reporterContact}</FieldError>
+            )}
+          </AnimatePresence>
+        </div>
       </fieldset>
 
       <AnimatePresence>
@@ -323,7 +343,7 @@ export function ReportForm() {
         {isSubmitting ? (
           <>
             <Loader2 className="h-4.5 w-4.5 animate-spin" />
-            {isUploadingImages ? "กำลังอัปโหลดรูป..." : "กำลังส่ง..."}
+            กำลังส่งข้อมูลและรูปภาพ...
           </>
         ) : (
           <>
@@ -347,35 +367,5 @@ function FieldError({ id, children }: { id: string; children: string }) {
     >
       {children}
     </motion.p>
-  );
-}
-
-function Switch({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-blue-600" : "bg-neutral-200"
-      }`}
-    >
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 500, damping: 32 }}
-        className="absolute top-1 h-5 w-5 rounded-full bg-white shadow"
-        style={{ left: checked ? "calc(100% - 24px)" : "4px" }}
-      />
-    </button>
   );
 }

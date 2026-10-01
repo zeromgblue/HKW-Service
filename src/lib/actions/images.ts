@@ -2,22 +2,20 @@
 
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminFirestore } from "@/lib/firebase/admin";
-import { getCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary/client";
+import { isCloudinaryConfigured } from "@/lib/cloudinary/client";
+import {
+  discardTicketImages,
+  isAcceptableImage,
+  MAX_FILES_PER_UPLOAD,
+  uploadTicketImage,
+} from "@/lib/cloudinary/uploadImage";
 import type { TicketImageType } from "@/types/ticket";
 
-const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_FILES = 3; // per upload
 const MAX_IMAGES_PER_TYPE = 6; // per ticket, per before/after
 
 export type UploadTicketImagesResult =
   | { ok: true; uploaded: number; failed: number }
   | { ok: false; error: string };
-
-function getExtension(filename: string): string {
-  return filename.split(".").pop()?.toLowerCase() ?? "";
-}
 
 export async function uploadTicketImages(
   ticketId: string,
@@ -36,71 +34,63 @@ export async function uploadTicketImages(
     return { ok: false, error: "ระบบอัปโหลดรูปภาพยังไม่ได้ตั้งค่า" };
   }
 
-  const candidates = files.filter((f) => f && f.size > 0).slice(0, MAX_FILES);
+  const candidates = files.filter((f) => f && f.size > 0).slice(0, MAX_FILES_PER_UPLOAD);
   if (candidates.length === 0) {
     return { ok: true, uploaded: 0, failed: 0 };
   }
 
   const db = getAdminFirestore();
+  const ticketRef = db.collection("tickets").doc(ticketId);
 
-  const ticketSnap = await db.collection("tickets").doc(ticketId).get();
+  const [ticketSnap, existing] = await Promise.all([
+    ticketRef.get(),
+    db.collection("ticket_images").where("ticketId", "==", ticketId).where("type", "==", type).count().get(),
+  ]);
   if (!ticketSnap.exists) {
     return { ok: false, error: "ไม่พบ Ticket นี้ในระบบ" };
   }
-
-  const existing = await db
-    .collection("ticket_images")
-    .where("ticketId", "==", ticketId)
-    .where("type", "==", type)
-    .count()
-    .get();
   const room = MAX_IMAGES_PER_TYPE - existing.data().count;
   if (room <= 0) {
     return { ok: false, error: "แนบรูปครบจำนวนสูงสุดของงานนี้แล้ว" };
   }
   candidates.splice(room);
 
-  const cloudinary = getCloudinary();
+  // All photos go up at the same time instead of one after another.
+  const uploads = await Promise.allSettled(
+    candidates.map(async (file) => {
+      if (!isAcceptableImage(file)) throw new Error("Rejected file: wrong type or too large");
+      return uploadTicketImage(file, ticketId, type);
+    }),
+  );
+  const stored = uploads.flatMap((u) => (u.status === "fulfilled" ? [u.value] : []));
+  for (const u of uploads) {
+    if (u.status === "rejected") console.error("uploadTicketImages failed", u.reason);
+  }
+  const failed = candidates.length - stored.length;
+  if (stored.length === 0) {
+    return { ok: true, uploaded: 0, failed };
+  }
 
-  let uploaded = 0;
-  let failed = 0;
-
-  for (const file of candidates) {
-    const extension = getExtension(file.name);
-    const validType = ALLOWED_MIME_TYPES.has(file.type) && ALLOWED_EXTENSIONS.has(extension);
-    const validSize = file.size <= MAX_FILE_SIZE;
-
-    if (!validType || !validSize) {
-      failed++;
-      continue;
-    }
-
-    try {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const dataUri = `data:${file.type};base64,${buffer.toString("base64")}`;
-
-      const result = await cloudinary.uploader.upload(dataUri, {
-        folder: `hkw-repair/${ticketId}/${type}`,
-        resource_type: "image",
-        transformation: [{ width: 1600, height: 1600, crop: "limit", quality: "auto", fetch_format: "auto" }],
-      });
-
-      const imageRef = db.collection("ticket_images").doc();
-      await imageRef.set({
+  try {
+    const batch = db.batch();
+    for (const image of stored) {
+      batch.set(db.collection("ticket_images").doc(), {
         ticketId,
         type,
-        storagePath: result.public_id,
-        downloadUrl: result.secure_url,
+        storagePath: image.storagePath,
+        downloadUrl: image.downloadUrl,
         uploadedBy,
         createdAt: FieldValue.serverTimestamp(),
       });
-
-      uploaded++;
-    } catch (err) {
-      console.error("uploadTicketImages failed for", file.name, err);
-      failed++;
     }
+    // Touching the ticket is what tells every open page (live streams) that new photos exist.
+    batch.update(ticketRef, { updatedAt: FieldValue.serverTimestamp() });
+    await batch.commit();
+  } catch (err) {
+    console.error("uploadTicketImages could not save image records", err);
+    await discardTicketImages(stored);
+    return { ok: false, error: "บันทึกรูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" };
   }
 
-  return { ok: true, uploaded, failed };
+  return { ok: true, uploaded: stored.length, failed };
 }

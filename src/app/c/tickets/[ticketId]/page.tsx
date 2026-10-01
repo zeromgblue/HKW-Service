@@ -1,11 +1,21 @@
-import { CheckCircle2, ClipboardList, Clock, MapPin, Phone, SearchX, Tag, UserRound } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  MapPin,
+  MessageCircle,
+  Phone,
+  SearchX,
+  Tag,
+  UserRound,
+} from "lucide-react";
 import { getTicket } from "@/lib/tickets/getTicket";
 import { getTicketImages } from "@/lib/tickets/getTicketImages";
 import { formatThaiDateTime } from "@/lib/formatDate";
 import { BackLink } from "@/components/ui/BackLink";
 import { ImageGallery } from "@/components/ui/ImageGallery";
 import { PriorityBadge, StatusBadge } from "@/components/tickets/Badges";
-import { CompleteJob } from "@/components/staff/CompleteJob";
+import { CompleteJob, CompletionOverlay } from "@/components/staff/CompleteJob";
 import { DeleteTicket } from "@/components/staff/DeleteTicket";
 import { PageTransition } from "@/components/ui/PageTransition";
 
@@ -60,8 +70,11 @@ export default async function StaffTicketPage(props: PageProps<"/c/tickets/[tick
               label="ผู้แจ้ง"
               value={ticket.isAnonymous || !ticket.reporterName ? "ไม่ระบุชื่อ" : ticket.reporterName}
             />
+            {!ticket.isAnonymous && ticket.reporterPhone && (
+              <Row icon={Phone} label="เบอร์โทร" value={ticket.reporterPhone} href={`tel:${ticket.reporterPhone}`} />
+            )}
             {!ticket.isAnonymous && ticket.reporterContact && (
-              <Row icon={Phone} label="ติดต่อ" value={ticket.reporterContact} />
+              <Row icon={MessageCircle} label="ช่องทางติดต่อ" value={ticket.reporterContact} />
             )}
           </dl>
 
@@ -112,19 +125,39 @@ export default async function StaffTicketPage(props: PageProps<"/c/tickets/[tick
         <div className="flex justify-center pt-2">
           <DeleteTicket ticketId={ticket.ticketId} />
         </div>
+
+        <CompletionOverlay ticketId={ticket.ticketId} />
       </main>
     </PageTransition>
   );
 }
 
-function Row({ icon: Icon, label, value }: { icon: typeof Tag; label: string; value: string }) {
+function Row({
+  icon: Icon,
+  label,
+  value,
+  href,
+}: {
+  icon: typeof Tag;
+  label: string;
+  value: string;
+  href?: string;
+}) {
   return (
     <div className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
       <dt className="flex shrink-0 items-center gap-2 text-neutral-500">
         <Icon className="h-4 w-4 text-neutral-400" strokeWidth={1.75} />
         {label}
       </dt>
-      <dd className="break-words text-right font-medium text-neutral-900">{value}</dd>
+      <dd className="break-words text-right font-medium text-neutral-900">
+        {href ? (
+          <a href={href} className="text-blue-600 underline-offset-2 hover:underline">
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
   );
 }

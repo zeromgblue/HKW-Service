@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, ChevronRight, Hourglass, Loader2, Search, X } from "lucide-react";
@@ -27,21 +27,18 @@ export function MyTickets() {
   const [adding, setAdding] = useState(false);
   const known = useRef(new Map<string, PublicTicket>());
 
-  const load = useCallback(async (list: string[]) => {
-    if (list.length === 0) return [];
-    const result = await getMyTickets(list);
-    setTickets(result);
-    return result;
-  }, []);
-
   useEffect(() => {
     if (ids.length === 0) return;
     let cancelled = false;
-    getMyTickets(ids).then((result) => {
-      if (cancelled) return;
-      known.current = new Map(result.map((t) => [t.ticketId, t]));
-      setTickets(result);
-    });
+    getMyTickets(ids)
+      .then((result) => {
+        if (cancelled) return;
+        known.current = new Map(result.map((t) => [t.ticketId, t]));
+        setTickets(result);
+      })
+      .catch(() => {
+        // Offline; the live stream syncs the list once it reconnects.
+      });
     return () => {
       cancelled = true;
     };
@@ -55,18 +52,30 @@ export function MyTickets() {
     return () => window.removeEventListener("pointerdown", arm);
   }, []);
 
-  useTicketWatch(ids, async (change) => {
-    const before = known.current.get(change.ticketId);
-    const result = await load(ids);
+  // Reloads the list and celebrates a ticket that went from pending to completed since the last
+  // look. Runs on every live change and after a reconnect, when changes may have been missed.
+  async function sync() {
+    if (ids.length === 0) return;
+    let result: PublicTicket[];
+    try {
+      result = await getMyTickets(ids);
+    } catch {
+      return; // offline; the next reconnect syncs again
+    }
+    const finished = result.find(
+      (t) => t.status === "completed" && known.current.get(t.ticketId)?.status === "pending",
+    );
     known.current = new Map(result.map((t) => [t.ticketId, t]));
-    const now = known.current.get(change.ticketId);
-    if (before?.status === "pending" && now?.status === "completed") {
-      setDoneToast(now);
+    setTickets(result);
+    if (finished) {
+      setDoneToast(finished);
       playSuccessChime();
       navigator.vibrate?.([200, 100, 200]);
       setTimeout(() => setDoneToast(null), 9000);
     }
-  });
+  }
+
+  useTicketWatch(ids, sync, sync);
 
   async function addById() {
     const id = addValue.trim().toUpperCase();

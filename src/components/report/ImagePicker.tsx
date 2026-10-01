@@ -44,24 +44,29 @@ export function ImagePicker({
       return;
     }
 
-    const accepted: PickedImage[] = [];
     setProcessing(true);
-    for (const original of incoming.slice(0, room)) {
-      if (!ALLOWED_TYPES.has(original.type)) {
-        setError("รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP");
-        continue;
-      }
-      if (original.size > MAX_RAW_FILE_SIZE) {
-        setError("ไฟล์ใหญ่เกินไป (ไม่เกิน 25MB)");
-        continue;
-      }
-      const file = await shrinkImage(original);
-      if (file.size > MAX_FILE_SIZE) {
-        setError("ไฟล์ยังใหญ่เกินไปหลังย่อรูป กรุณาเลือกรูปอื่น");
-        continue;
-      }
-      accepted.push({ file, previewUrl: URL.createObjectURL(file) });
-    }
+    // Shrink every picked photo at the same time rather than one by one.
+    const shrunk = await Promise.all(
+      incoming.slice(0, room).map(async (original) => {
+        if (!ALLOWED_TYPES.has(original.type)) {
+          setError("รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP");
+          return null;
+        }
+        if (original.size > MAX_RAW_FILE_SIZE) {
+          setError("ไฟล์ใหญ่เกินไป (ไม่เกิน 25MB)");
+          return null;
+        }
+        const file = await shrinkImage(original);
+        if (file.size > MAX_FILE_SIZE) {
+          setError("ไฟล์ยังใหญ่เกินไปหลังย่อรูป กรุณาเลือกรูปอื่น");
+          return null;
+        }
+        return file;
+      }),
+    );
+    const accepted: PickedImage[] = shrunk
+      .filter((file) => file !== null)
+      .map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
     setProcessing(false);
 
     if (accepted.length > 0) {
