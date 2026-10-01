@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { deleteTicket } from "@/lib/actions/staffTickets";
 
-export function DeleteTicket({ ticketId }: { ticketId: string }) {
+export function DeleteTicket({ ticketId, redirectTo = "/c" }: { ticketId: string; redirectTo?: string }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -21,7 +21,7 @@ export function DeleteTicket({ ticketId }: { ticketId: string }) {
         setDeleting(false);
         return;
       }
-      router.replace("/c");
+      router.replace(redirectTo);
       router.refresh();
     } catch {
       setError("ลบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");

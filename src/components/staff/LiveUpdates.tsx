@@ -28,7 +28,14 @@ const ConnectedContext = createContext(false);
 
 // Keeps every staff page live: one stream for the whole /c section refreshes the current page's
 // data whenever a ticket changes and shows a toast (with sound + vibration) for brand-new jobs.
-export function StaffLiveProvider({ children }: { children: React.ReactNode }) {
+export function StaffLiveProvider({
+  children,
+  ticketBasePath = "/c/tickets",
+}: {
+  children: React.ReactNode;
+  // Where a new-job toast links to (the admin pages have their own ticket view).
+  ticketBasePath?: string;
+}) {
   const router = useRouter();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -79,7 +86,10 @@ export function StaffLiveProvider({ children }: { children: React.ReactNode }) {
     <ConnectedContext value={connected}>
       {children}
 
-      <div aria-live="polite" className="pointer-events-none fixed inset-x-3 top-3 z-40 flex flex-col items-center gap-2">
+      <div
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-3 top-3 z-40 flex flex-col items-center gap-2 print:hidden"
+      >
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div
@@ -92,7 +102,7 @@ export function StaffLiveProvider({ children }: { children: React.ReactNode }) {
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <BellRing className="h-4.5 w-4.5" strokeWidth={1.75} />
               </span>
-              <Link href={`/c/tickets/${t.ticketId}`} className="min-w-0 flex-1">
+              <Link href={`${ticketBasePath}/${t.ticketId}`} className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-neutral-900">
                   {t.priority === "normal" ? "มีงานใหม่เข้ามา" : "งานด่วนเข้ามา!"}
                 </p>
