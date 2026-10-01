@@ -36,8 +36,8 @@ export function ReportViewport({ children }: { children: React.ReactNode }) {
         </button>
       )}
       <div className="w-full overflow-x-auto pb-4 print:overflow-visible print:pb-0">
-        {/* `data-report-fit` lets the PDF export and the print styles undo the zoom. */}
-        <div data-report-fit className="report-fit mx-auto w-fit" style={{ zoom: actualSize ? 1 : fitScale }}>
+        {/* The print styles undo this zoom through the `report-fit` class. */}
+        <div className="report-fit mx-auto w-fit" style={{ zoom: actualSize ? 1 : fitScale }}>
           {children}
         </div>
       </div>

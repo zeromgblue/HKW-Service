@@ -98,13 +98,14 @@ export default async function AdminDocumentsPage(props: {
                   <Printer className="h-3.5 w-3.5" strokeWidth={1.75} />
                   พิมพ์<span className="hidden sm:inline">เอกสาร</span>
                 </Link>
-                <Link
-                  href={`/admin/documents/${key}?do=pdf`}
+                <a
+                  href={`/api/admin/report-pdf?month=${key}`}
+                  download
                   className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-blue-600 px-2.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 active:scale-95 sm:px-3.5 sm:py-2"
                 >
                   <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
                   <span className="hidden sm:inline">ดาวน์โหลด</span> PDF
-                </Link>
+                </a>
               </div>
             </Reveal>
             </li>

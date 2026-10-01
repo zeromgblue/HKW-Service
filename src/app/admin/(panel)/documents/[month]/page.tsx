@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { requireAdmin } from "@/lib/admin/session";
 import { listMonthTickets } from "@/lib/reports/listMonthTickets";
 import {
@@ -16,11 +16,8 @@ import {
 import { statusLabels } from "@/lib/tickets/statusLabels";
 import { BackLink } from "@/components/ui/BackLink";
 import { PrintButton } from "@/components/admin/PrintButton";
-import { DownloadPdfButton } from "@/components/admin/DownloadPdfButton";
 import { ReportViewport } from "@/components/admin/ReportViewport";
 import { Reveal } from "@/components/ui/Reveal";
-
-const SHEET_ID = "report-sheet";
 
 function shiftMonth(monthKey: string, by: number): string {
   const [year, month] = monthKey.split("-").map(Number);
@@ -41,7 +38,7 @@ export default async function MonthlyReportPage(props: {
 
   const { month: monthKey } = await props.params;
   if (!isMonthKey(monthKey)) notFound();
-  // The documents list links here with ?do=print or ?do=pdf to start that action right away.
+  // The documents list links here with ?do=print to open the print dialog right away.
   const { do: action } = await props.searchParams;
 
   const tickets = await listMonthTickets(monthKey);
@@ -98,11 +95,15 @@ export default async function MonthlyReportPage(props: {
           </div>
           <div className="grid grid-cols-2 items-start gap-2 sm:flex">
             <PrintButton autoStart={action === "print"} />
-            <DownloadPdfButton
-              targetId={SHEET_ID}
-              fileName={`รายงานแจ้งซ่อม-${monthName}.pdf`}
-              autoStart={action === "pdf"}
-            />
+            {/* A plain link to a server-built file: it downloads the same way on every device. */}
+            <a
+              href={`/api/admin/report-pdf?month=${monthKey}`}
+              download
+              className="flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 active:scale-95 sm:px-4"
+            >
+              <Download className="h-4 w-4" strokeWidth={1.75} />
+              ดาวน์โหลด PDF
+            </a>
           </div>
         </div>
       </Reveal>
@@ -110,7 +111,6 @@ export default async function MonthlyReportPage(props: {
       <Reveal index={1} className="w-full">
       <ReportViewport>
         <article
-          id={SHEET_ID}
           className="report-sheet mx-auto flex min-h-[297mm] w-[210mm] flex-col gap-6 bg-white p-[14mm] text-neutral-900 shadow-lg ring-1 ring-neutral-200 print:min-h-0 print:w-auto print:p-0 print:shadow-none print:ring-0"
         >
           <header className="flex items-center gap-4 border-b-2 border-blue-700 pb-4">

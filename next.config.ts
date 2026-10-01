@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
     // Safe with live data: every ticket change calls router.refresh(), which clears this cache.
     staleTimes: { dynamic: 30 },
   },
+  // The PDF library loads its own data files from disk, so it must stay an ordinary package.
+  serverExternalPackages: ["pdfmake"],
   images: {
     remotePatterns: [
       {
