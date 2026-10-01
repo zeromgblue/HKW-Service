@@ -1,9 +1,11 @@
 // Client-side downscale + recompress so phone photos (often 3-8MB) upload quickly and stay
 // well under the server limits. Falls back to the original file if anything goes wrong.
 
-const MAX_DIMENSION = 1600;
-const QUALITY = 0.82;
-const SKIP_IF_SMALLER_THAN = 800 * 1024;
+// 1280px at this quality keeps a repair photo clear on a phone screen while sending far fewer
+// bytes than 1600px/0.82, and upload time is mostly bytes on a mobile connection.
+const MAX_DIMENSION = 1280;
+const QUALITY = 0.75;
+const SKIP_IF_SMALLER_THAN = 300 * 1024;
 
 export async function shrinkImage(file: File): Promise<File> {
   try {

@@ -15,13 +15,17 @@ export function TicketLive({ ticketId }: { ticketId: string }) {
     return () => window.removeEventListener("pointerdown", arm);
   }, []);
 
-  useTicketWatch([ticketId], (change) => {
-    if (change.status === "completed") {
-      playSuccessChime();
-      navigator.vibrate?.([200, 100, 200]);
-    }
-    router.refresh();
-  });
+  useTicketWatch(
+    [ticketId],
+    (change) => {
+      if (change.status === "completed") {
+        playSuccessChime();
+        navigator.vibrate?.([200, 100, 200]);
+      }
+      router.refresh();
+    },
+    () => router.refresh(),
+  );
 
   return null;
 }

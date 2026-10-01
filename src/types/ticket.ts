@@ -25,6 +25,7 @@ export interface Ticket {
   status: TicketStatus;
   reporterType: ReporterType;
   reporterName: string | null;
+  reporterPhone: string | null;
   reporterContact: string | null;
   isAnonymous: boolean;
   assignedTo: string | null;

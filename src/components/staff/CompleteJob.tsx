@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -16,6 +16,52 @@ import { saveStaffName, useStaffName } from "@/components/staff/useStaffName";
 export interface AfterImage {
   id: string;
   url: string;
+}
+
+// Which ticket is showing its "job done" overlay. Kept outside CompleteJob because the live
+// refresh swaps that panel for the finished summary the moment the job closes.
+let celebrating: string | null = null;
+const celebrationListeners = new Set<() => void>();
+
+function setCelebrating(ticketId: string | null) {
+  celebrating = ticketId;
+  for (const listener of celebrationListeners) listener();
+}
+
+function subscribeCelebration(listener: () => void) {
+  celebrationListeners.add(listener);
+  return () => {
+    celebrationListeners.delete(listener);
+  };
+}
+
+// Render once per ticket page, outside the pending-only section.
+export function CompletionOverlay({ ticketId }: { ticketId: string }) {
+  const router = useRouter();
+  const active = useSyncExternalStore(
+    subscribeCelebration,
+    () => celebrating === ticketId,
+    () => false,
+  );
+
+  useEffect(() => {
+    return () => {
+      if (celebrating === ticketId) setCelebrating(null);
+    };
+  }, [ticketId]);
+
+  return (
+    <AnimatePresence>
+      {active && (
+        <SuccessOverlay
+          onClose={() => {
+            setCelebrating(null);
+            router.refresh();
+          }}
+        />
+      )}
+    </AnimatePresence>
+  );
 }
 
 export function CompleteJob({ ticketId, afterImages }: { ticketId: string; afterImages: AfterImage[] }) {
@@ -77,6 +123,7 @@ export function CompleteJob({ ticketId, afterImages }: { ticketId: string; after
     }
     playSuccessChime();
     setDone(true);
+    setCelebrating(ticketId);
     return true;
   }
 
@@ -160,8 +207,6 @@ export function CompleteJob({ ticketId, afterImages }: { ticketId: string; after
           {error}
         </motion.p>
       )}
-
-      <AnimatePresence>{done && <SuccessOverlay onClose={() => router.refresh()} />}</AnimatePresence>
     </div>
   );
 }

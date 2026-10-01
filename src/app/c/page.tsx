@@ -9,7 +9,7 @@ import {
 } from "@/lib/tickets/filterTickets";
 import { defaultCategories } from "@/data/categories";
 import { TicketList } from "@/components/staff/TicketList";
-import { LiveUpdates } from "@/components/staff/LiveUpdates";
+import { LiveStatus } from "@/components/staff/LiveUpdates";
 import { PushSetup } from "@/components/staff/PushSetup";
 import { PageTransition } from "@/components/ui/PageTransition";
 import { StatusTabLink } from "@/components/staff/StatusTabLink";
@@ -54,7 +54,7 @@ export default async function DashboardPage(props: PageProps<"/c">) {
             <h1 className="text-xl font-bold text-neutral-900">งานแจ้งซ่อมทั้งหมด</h1>
             <p className="text-sm text-neutral-500">สำหรับช่างและเจ้าหน้าที่</p>
           </div>
-          <LiveUpdates />
+          <LiveStatus />
         </header>
 
         <PushSetup />

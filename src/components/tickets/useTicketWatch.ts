@@ -1,26 +1,20 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEventStream } from "@/lib/useEventStream";
 
 export interface TicketChange {
   ticketId: string;
-  status: "pending" | "completed";
+  status: "pending" | "completed" | "deleted";
 }
 
 // Subscribes to changes of the given tickets (server-sent events; reconnects automatically).
-export function useTicketWatch(ids: string[], onChange: (change: TicketChange) => void) {
-  const handler = useRef(onChange);
-  useEffect(() => {
-    handler.current = onChange;
-  });
-
+// `onResync` fires after a reconnect, when changes may have been missed.
+export function useTicketWatch(ids: string[], onChange: (change: TicketChange) => void, onResync: () => void) {
   const key = ids.join(",");
-  useEffect(() => {
-    if (!key) return;
-    const source = new EventSource(`/api/tickets/watch?ids=${encodeURIComponent(key)}`);
-    source.addEventListener("ticket", (e) => {
-      handler.current(JSON.parse((e as MessageEvent<string>).data) as TicketChange);
-    });
-    return () => source.close();
-  }, [key]);
+  useEventStream<TicketChange>(
+    key ? `/api/tickets/watch?ids=${encodeURIComponent(key)}` : null,
+    "ticket",
+    onChange,
+    onResync,
+  );
 }

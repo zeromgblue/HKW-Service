@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getAdminFirestore, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { getCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary/client";
 import { sendPushToTicket } from "@/lib/push";
+import { STAFF_FEED_DOC } from "@/lib/tickets/staffFeed";
 
 export type StaffActionResult = { ok: true } | { ok: false; error: string };
 
@@ -99,6 +100,8 @@ export async function deleteTicket(ticketId: unknown): Promise<StaffActionResult
     batch.delete(ticketRef);
     for (const doc of imagesSnap.docs) batch.delete(doc.ref);
     for (const doc of pushSnap.docs) batch.delete(doc.ref);
+    // Lets every other open staff page drop the ticket right away.
+    batch.set(db.doc(STAFF_FEED_DOC), { deletedTicketId: id, at: FieldValue.serverTimestamp() });
     await batch.commit();
 
     if (isCloudinaryConfigured() && imagesSnap.docs.length > 0) {

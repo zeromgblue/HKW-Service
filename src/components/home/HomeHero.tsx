@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
-import { BellRing, Camera, EyeOff, Wrench } from "lucide-react";
+import { BellRing, Camera, ClipboardCheck, Wrench } from "lucide-react";
 import { MyTickets } from "@/components/home/MyTickets";
 
 const container: Variants = {
@@ -27,9 +27,9 @@ const features = [
     color: "bg-blue-50 text-blue-600",
   },
   {
-    icon: EyeOff,
-    title: "ไม่ระบุตัวตนได้",
-    desc: "เป็นส่วนตัว ปลอดภัย",
+    icon: ClipboardCheck,
+    title: "ติดตามสถานะได้",
+    desc: "รู้ทันทีเมื่อซ่อมเสร็จ",
     color: "bg-violet-50 text-violet-600",
   },
   {

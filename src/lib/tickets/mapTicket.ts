@@ -26,6 +26,7 @@ export function mapTicket(id: string, data: DocumentData): Ticket {
     status: data.status,
     reporterType: data.reporterType,
     reporterName: data.reporterName ?? null,
+    reporterPhone: data.reporterPhone ?? null,
     reporterContact: data.reporterContact ?? null,
     isAnonymous: Boolean(data.isAnonymous),
     assignedTo: data.assignedTo ?? null,
