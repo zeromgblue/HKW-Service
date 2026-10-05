@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   title: "HKW Service | ระบบแจ้งซ่อมโรงเรียน",
   description: "ระบบแจ้งซ่อมภายในโรงเรียน",
   icons: { apple: "/icons/apple-touch-icon.png" },
-  appleWebApp: { capable: true, title: "HKW ช่าง", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "HKW Service", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

@@ -1,11 +1,14 @@
 import type { MetadataRoute } from "next";
 
+// The app teachers install to report repairs. Staff pages under /c link their own manifest
+// (see c/manifest.webmanifest), so the two install as separate home-screen apps.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "HKW Service — ช่างซ่อม",
-    short_name: "HKW ช่าง",
-    description: "รับงานแจ้งซ่อมและจบงานภายในโรงเรียน",
-    start_url: "/c",
+    id: "/",
+    name: "HKW Service — แจ้งซ่อมโรงเรียน",
+    short_name: "HKW Service",
+    description: "แจ้งซ่อมและติดตามสถานะงานซ่อมภายในโรงเรียน",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
