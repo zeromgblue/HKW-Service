@@ -162,6 +162,12 @@ export function CompleteJob({ ticketId, afterImages }: { ticketId: string; after
             <Loader2 className="h-4 w-4 animate-spin" />
             กำลังอัปโหลดรูป...
           </p>
+        ) : !hasActor ? (
+          // The installed app can start with no remembered name; say so here rather than
+          // letting a photo be picked and then thrown away.
+          <p className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm text-amber-800">
+            ใส่ชื่อผู้ดำเนินการในข้อ 1 ก่อน จึงจะเพิ่มรูปได้
+          </p>
         ) : (
           <ImagePicker key={pickerKey} onChange={uploadPicked} />
         )}

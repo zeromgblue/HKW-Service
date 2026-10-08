@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Camera, ImagePlus, Loader2, X } from "lucide-react";
-import { shrinkImage } from "@/lib/shrinkImage";
+import { isUploadableImage, shrinkImage } from "@/lib/shrinkImage";
 
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_RAW_FILE_SIZE = 25 * 1024 * 1024; // original photo, before shrinking
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // after shrinking (server limit)
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // after shrinking; the host refuses requests over ~4.5MB
 const MAX_FILES = 3;
 
 interface PickedImage {
@@ -23,7 +22,6 @@ export function ImagePicker({
   const [images, setImages] = useState<PickedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -48,15 +46,17 @@ export function ImagePicker({
     // Shrink every picked photo at the same time rather than one by one.
     const shrunk = await Promise.all(
       incoming.slice(0, room).map(async (original) => {
-        if (!ALLOWED_TYPES.has(original.type)) {
-          setError("รองรับเฉพาะไฟล์ JPG, PNG หรือ WebP");
-          return null;
-        }
         if (original.size > MAX_RAW_FILE_SIZE) {
           setError("ไฟล์ใหญ่เกินไป (ไม่เกิน 25MB)");
           return null;
         }
+        // Checked after shrinking: any photo the phone can open comes back as a JPEG, even when
+        // the picker reported no type for it (seen on Android).
         const file = await shrinkImage(original);
+        if (!isUploadableImage(file)) {
+          setError("เปิดรูปนี้ไม่ได้ กรุณาใช้ไฟล์ JPG, PNG หรือ WebP");
+          return null;
+        }
         if (file.size > MAX_FILE_SIZE) {
           setError("ไฟล์ยังใหญ่เกินไปหลังย่อรูป กรุณาเลือกรูปอื่น");
           return null;
@@ -121,28 +121,24 @@ export function ImagePicker({
         )}
 
         {images.length < MAX_FILES && !processing && (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-neutral-300 text-neutral-400 transition hover:border-blue-400 hover:text-blue-500"
-          >
+          // The input sits inside its label so the tap opens the picker natively. Opening a
+          // display:none input from script is unreliable in installed web apps on Android.
+          <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-neutral-300 text-neutral-400 transition hover:border-blue-400 hover:text-blue-500 focus-within:border-blue-500 focus-within:text-blue-500">
             <ImagePlus className="h-5 w-5" strokeWidth={1.75} />
             <span className="text-[11px]">เพิ่มรูป</span>
-          </button>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={(e) => {
+                handleFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </label>
         )}
       </div>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          handleFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
 
       <p className="flex items-center gap-1.5 text-xs text-neutral-400">
         <Camera className="h-3.5 w-3.5" strokeWidth={1.75} />
